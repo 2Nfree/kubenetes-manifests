@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nacos-mysql
+  namespace: nacos
+spec:
+  selector:
+    matchLabels:
+      app: nacos-mysql
+  serviceName: "nacos-mysql"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nacos-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: nacos/nacos-mysql:5.7
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root"
+        - name: MYSQL_DATABASE
+          value: "nacos_devtest"
+        - name: MYSQL_USER
+          value: "nacos"
+        - name: MYSQL_PASSWORD
+          value: "nacos"
+        volumeMounts:
+        - name: nacos-mysql-storage
+          mountPath: /var/lib/mysql
+          subPath: mysql
+          readOnly: false
+  volumeClaimTemplates:
+  - metadata:
+      name: nacos-mysql-storage
+    spec:
+      accessModes: [ "ReadWriteMany" ]
+      storageClassName: gluster
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-mysql
+  namespace: nacos
+  labels:
+    app: nacos-mysql
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: nacos-mysql
+    

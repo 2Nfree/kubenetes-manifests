@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nacos
+  namespace: nacos
+spec:
+  #需要设置ingress控制器的类别
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - nacos.example.com
+      secretName: nacos-tls
+  rules:
+    - host: nacos.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nacos
+                port:
+                  number: 8848
