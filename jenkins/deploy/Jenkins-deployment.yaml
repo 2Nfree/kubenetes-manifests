@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  jenkins-deployment
+  namespace: cicd
+  labels:
+    app:  jenkins-deployment
+spec:
+  selector:
+    matchLabels:
+      app: jenkins-deployment
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app:  jenkins-deployment
+    spec:
+      containers:
+      - name:  jenkins-deployment
+        image:  jenkinsci/blueocean:1.25.5
+        resources:
+          requests:
+            cpu: 2
+            memory: 2Gi
+          limits:
+            cpu: 2
+            memory: 2Gi
+        ports:
+        - containerPort: 8080
+          name: web
+          protocol: TCP
+        - containerPort: 50000
+          name: agent
+          protocol: TCP
+        volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+        - name: jenkins-storage
+          mountPath: /var/jenkins_home
+          subPath: jenkins_home
+        - name: jenkins-storage
+          mountPath: /root
+          subPath: root
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+        - name: jenkins-storage
+          persistentVolumeClaim:
+            claimName: jenkins-storage
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-storage
+  namespace: cicd
+  labels:
+    app: jenkins-storage
+spec:
+  storageClassName: gluster
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi

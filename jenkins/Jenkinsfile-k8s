@@ -1,0 +1,114 @@
+pipeline {
+    environment {
+        HARBOR_CREDS = credentials('harbor-creds')
+        K8S_CONFIG = credentials('k8s-config')
+        GIT_TAG = sh(returnStdout: true,script: 'git describe --tags --always').trim()
+    }
+    triggers {
+        gitlab(
+            triggerOnPush: true,
+            triggerOnMergeRequest: false,
+            branchFilterType: 'All',
+            secretToken:"123456"
+        )
+    }
+    parameters {
+        string(name: 'HARBOR_HOST', defaultValue: 'harbor.example.com', description: 'harbor仓库地址')
+        string(name: 'DOCKER_IMAGE', defaultValue: 'infra/backend', description: 'docker镜像名')
+        string(name: 'K8S_NAMESPACE', defaultValue: 'infra', description: 'k8s的namespace名称')
+        string(name: 'APP_NAME', defaultValue: 'backend', description: 'k8s中应用名')
+        string(name: 'K8S_DEPLOY_FILE', defaultValue: 'deploy/backend.yaml', description: 'k8s部署文件')
+    }
+    agent {
+        kubernetes{
+            inheritFrom 'jenkins-slave'
+        }
+    }
+    stages {
+        stage('Prepare'){
+            steps {
+                sh "echo 当前分支:${env.BRANCH_NAME}"
+                sh "echo 当前提交:${env.COMMIT}"
+                sh "echo WORKSPACE:${env.WORKSPACE}"
+                sh "echo GIT_BRANCH:${env.GIT_BRANCH}"
+                sh "echo GIT_TAG:${GIT_TAG}"
+            }
+        }
+        stage('Maven Build') {
+            when { expression { env.GIT_TAG != null } }
+            agent {
+                docker {
+                    image 'maven:3-jdk-8-alpine'
+                    args '-v $HOME/.m2:/root/.m2'
+                }
+            }
+            steps {
+                sh 'mvn clean package -Dfile.encoding=UTF-8 -DskipTests=true'
+                stash includes: 'target/*.jar', name: 'app'
+            }
+        }
+
+        stage('Docker Build on Branch Others'){
+            when {
+                expression { env.BRANCH_NAME != 'master' }
+                expression { env.GIT_TAG != null }
+            }
+            agent any
+            steps {
+                unstash 'app'
+                sh "docker login -u ${HARBOR_CREDS_USR} -p ${HARBOR_CREDS_PSW} ${params.HARBOR_HOST}"
+                sh "docker build --build-arg JAR_FILE=`ls target/*.jar |cut -d '/' -f2` -t ${params.HARBOR_HOST}/${params.DOCKER_IMAGE}-${env.BRANCH_NAME}:${GIT_TAG} ."
+                sh "docker push ${params.HARBOR_HOST}/${params.DOCKER_IMAGE}-${env.BRANCH_NAME}:${GIT_TAG}"
+                sh "docker rmi ${params.HARBOR_HOST}/${params.DOCKER_IMAGE}-${env.BRANCH_NAME}:${GIT_TAG}"
+            }
+        }
+        stage('Docker Build on Branch Master'){
+            when {
+                expression { env.BRANCH_NAME == 'master' }
+                expression { env.GIT_TAG != null }
+            }
+            agent any
+            steps {
+                unstash 'app'
+                sh "docker login -u ${HARBOR_CREDS_USR} -p ${HARBOR_CREDS_PSW} ${params.HARBOR_HOST}"
+                sh "docker build --build-arg JAR_FILE=`ls target/*.jar |cut -d '/' -f2` -t ${params.HARBOR_HOST}/${params.DOCKER_IMAGE}:${GIT_TAG} ."
+                sh "docker push ${params.HARBOR_HOST}/${params.DOCKER_IMAGE}:${GIT_TAG}"
+                sh "docker rmi ${params.HARBOR_HOST}/${params.DOCKER_IMAGE}:${GIT_TAG}"
+            }
+        }
+        stage('Deploy Kubernetes on Branch Others'){
+            when {
+                expression { env.BRANCH_NAME != 'master' }
+                expression { env.GIT_TAG != null }
+            }
+            agent {
+                docker {
+                    image 'lwolf/helm-kubectl-docker'
+                }
+            }
+            steps {
+                sh "mkdir -p ~/.kube"
+                sh "echo ${K8S_CONFIG} | base64 -d > ~/.kube/config"
+                sh "sed -e 's#{IMAGE_URL}#${params.HARBOR_HOST}/${params.DOCKER_IMAGE}-${env.BRANCH_NAME}#g;s#{IMAGE_TAG}#${GIT_TAG}#g;s#{APP_NAME}#${params.APP_NAME}-${env.BRANCH_NAME}#g' ${K8S_DEPLOY_FILE} > k8s-deployment.yml"
+                sh "kubectl apply -f k8s-deployment.yml --namespace=${params.K8S_NAMESPACE}-${env.BRANCH_NAME}"
+            }
+        }
+        stage('Deploy Kubernetes on Branch Master'){
+            when {
+                expression { env.BRANCH_NAME == 'master' }
+                expression { env.GIT_TAG != null }
+            }
+            agent {
+                docker {
+                    image 'lwolf/helm-kubectl-docker'
+                }
+            }
+            steps {
+                sh "mkdir -p ~/.kube"
+                sh "echo ${K8S_CONFIG} | base64 -d > ~/.kube/config"
+                sh "sed -e 's#{IMAGE_URL}#${params.HARBOR_HOST}/${params.DOCKER_IMAGE}#g;s#{IMAGE_TAG}#${GIT_TAG}#g;s#{APP_NAME}#${params.APP_NAME}#g' ${K8S_DEPLOY_FILE} > k8s-deployment.yml"
+                sh "kubectl apply -f k8s-deployment.yml --namespace=${params.K8S_NAMESPACE}"
+            }
+        }
+    }
+}

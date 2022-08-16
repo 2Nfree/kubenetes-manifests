@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins.example.com
+  namespace: cicd
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - jenkins.example.com
+      secretName: [证书名称]
+  rules:
+    - host: jenkins.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080
