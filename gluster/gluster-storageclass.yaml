@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gluster
+provisioner: kubernetes.io/glusterfs
+parameters:
+  resturl: "http://[heketiip:port]"
+  clusterid: "gluster集群ID"
+  restauthenabled: "false"
+  gidMin: "40000"
+  gidMax: "50000"
+  #生产环境建议为volumetype: 'replicate:2'
+  volumetype: "none"
+allowVolumeExpansion: true
