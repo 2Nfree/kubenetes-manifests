@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rook-ceph-mgr-dashboard
+  namespace: rook-ceph
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      proxy_ssl_verify off;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - 【域名】
+      secretName: ceph-tls
+  rules:
+    - host: 【域名】
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rook-ceph-mgr-dashboard
+                port:
+                  name: https-dashboard

@@ -1,0 +1,35 @@
+apiVersion: ceph.rook.io/v1
+#ceph块存储池
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: osd
+  replicated:
+    #分片大小为 1
+    size: 1
+    requireSafeReplicaSize: false
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  #存储类名称
+  name: rook-ceph-block
+provisioner: rook-ceph.rbd.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  #这里的名字选择上面的块存储池
+  pool: replicapool
+  imageFormat: "2"
+  imageFeatures: layering
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+  #建议格式化类型使用XFS而不是EXT4，因为EXT4格式化后会生成一个lost+found文件夹，某些容器要求挂载的数据盘必须是空的，例如Mysql，如果必要使用，可选择挂载到上一级目录
+  csi.storage.k8s.io/fstype: xfs
+allowVolumeExpansion: true
+reclaimPolicy: Delete
