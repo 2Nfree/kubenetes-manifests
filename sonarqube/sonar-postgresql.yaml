@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-sonar
+  namespace: cicd
+spec:
+  selector:
+    matchLabels:
+      app: postgres-sonar
+  serviceName: "postgres-sonar"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres-sonar
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: postgres-sonar
+        image: postgres:alpine
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+          - name: postgre-storage
+            mountPath: /var/lib/postgresql/data
+        env:
+        - name: POSTGRES_DB
+          value: "sonarDB"
+        - name: POSTGRES_USER
+          value: "sonarUser"
+        - name: POSTGRES_PASSWORD 
+          value: "密码"
+  volumeClaimTemplates:
+  - metadata:
+      name: postgre-storage
+    spec:
+      accessModes: [ "ReadWriteMany" ]
+      storageClassName: "gluster"
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-sonar
+  namespace: cicd
+  labels:
+    app: postgres-sonar
+spec:
+  ports:
+  - name: sonarqube
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: postgres-sonar

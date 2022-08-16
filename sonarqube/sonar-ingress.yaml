@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonar.example.com
+  namespace: cicd
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - sonar.example.com
+      secretName: [证书名称]
+  rules:
+    - host: sonar.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sonarqube
+                port:
+                  number: 9000
