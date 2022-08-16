@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ql.example.com
+  namespace: qinglong
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ql.example.com
+      secretName: [证书名称]
+  rules:
+    - host: ql.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qinglong
+                port:
+                  name: qinglong

@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  qinglong
+  namespace: qinglong
+  labels:
+    app:  qinglong-deployment
+spec:
+  selector:
+    matchLabels:
+      app: qinglong-deployment
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app:  qinglong-deployment
+    spec:
+      containers:
+      - name:  qinglong-deployment
+        image:  whyour/qinglong:2.13
+        resources:
+          requests:
+            cpu: 1
+            memory: 2Gi
+          limits:
+            cpu: 1
+            memory: 2Gi
+        ports:
+        - containerPort: 5700
+          name:  qinglong
+        volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+        - name: qinglong-storage
+          mountPath: /ql/data
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Shanghai
+        - name: qinglong-storage
+          persistentVolumeClaim:
+            claimName: qinglong-storage
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qinglong
+  namespace: qinglong
+  labels:
+    app: qinglong
+spec:
+  ports:
+  - name: qinglong
+    port: 5700
+    targetPort: 5700
+    protocol: TCP
+  selector:
+    app: qinglong-deployment
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qinglong-storage
+  namespace: qinglong
+  labels:
+    app: qinglong
+spec:
+  storageClassName: gluster
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
