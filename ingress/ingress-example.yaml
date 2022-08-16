@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: [ingress 名字]
+  namespace: [ingress 的命名空间]
+spec:
+  #需要设置ingress控制器的类别
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - [域名]
+      secretName: [创建的tls证书名称]
+  rules:
+    - host: [域名]
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: [需要代理的service名字]
+                port:
+                  #可以用端口名称
+                  name: https-80
+                  #也可以用端口号
+                  # number: 80

@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nginx-ingress-metrics
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+spec:
+  jobLabel: app.kubernetes.io/component
+  endpoints:
+  #之前定义的ingress的监控端口，一定要用名称。不能使用数字
+  - port: http-metrics
+    interval: 10s 
+  selector:
+    matchLabels:
+      #该标签匹配ingress-nginx-controller的pod
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/instance: ingress-nginx
+      app.kubernetes.io/name: ingress-nginx
+  namespaceSelector:
+    matchNames:
+    #指定ingress控制器的名称空间为ingress-nginx
+    - ingress-nginx
