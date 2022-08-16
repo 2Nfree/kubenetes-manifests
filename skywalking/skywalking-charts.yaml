@@ -1,0 +1,38 @@
+serviceAccounts:
+  oap:
+
+oap:
+  name: oap
+  dynamicConfigEnabled: false
+  image:
+    tag: 9.1.0
+  storageType: elasticsearch
+  replicas: 1
+  service:
+    type: ClusterIP
+  javaOpts: -Xmx2g -Xms2g
+  resources: 
+    limits:
+      cpu: 2
+      memory: 4Gi
+    requests:
+      cpu: 2
+      memory: 4Gi
+
+ui:
+  name: ui
+  replicas: 1
+  image:
+    tag: 9.1.0
+  service:
+    type: ClusterIP
+
+
+elasticsearch:
+  enabled: false
+  config:
+    host: your.elasticsearch.host.or.ip
+    port:
+      http: 9200
+    user: "xxx"
+    password: "xxx"

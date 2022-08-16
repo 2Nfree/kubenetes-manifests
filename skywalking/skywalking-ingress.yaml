@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skywalking.example.com
+  namespace: skywalking
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - skywalking.example.com
+      secretName: [创建的tls证书名称]
+  rules:
+    - host: skywalking.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: skywalking-ui
+                port:
+                  number: 80

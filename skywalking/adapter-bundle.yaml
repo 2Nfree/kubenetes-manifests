@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: skywalking-custom-metrics-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skywalking-custom-metrics-apiserver
+  namespace: skywalking-custom-metrics-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: skywalking-custom-metrics-resource-reader
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - nodes/stats
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: skywalking-custom-metrics-server-resources
+rules:
+- apiGroups:
+  - custom.metrics.k8s.io
+  - external.metrics.k8s.io
+  resources:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: skywalking-custom-metrics-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: skywalking-custom-metrics-apiserver
+  namespace: skywalking-custom-metrics-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: skywalking-custom-metrics-hpa-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: skywalking-custom-metrics-server-resources
+subjects:
+- kind: ServiceAccount
+  name: horizontal-pod-autoscaler
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: skywalking-custom-metrics-resource-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: skywalking-custom-metrics-resource-reader
+subjects:
+- kind: ServiceAccount
+  name: skywalking-custom-metrics-apiserver
+  namespace: skywalking-custom-metrics-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: skywalking-custom-metrics-system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: skywalking-custom-metrics-apiserver
+  namespace: skywalking-custom-metrics-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skywalking-custom-metrics-apiserver
+  namespace: skywalking-custom-metrics-system
+spec:
+  ports:
+  - name: https
+    port: 443
+    targetPort: 6443
+  selector:
+    app: custom-metrics-apiserver
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: custom-metrics-apiserver
+  name: skywalking-custom-metrics-apiserver
+  namespace: skywalking-custom-metrics-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: custom-metrics-apiserver
+  template:
+    metadata:
+      labels:
+        app: custom-metrics-apiserver
+      name: custom-metrics-apiserver
+    spec:
+      containers:
+      - args:
+        - --secure-port=6443
+        - --logtostderr=true
+        - --v=10
+        - --oap-addr=http://skywalking-oap.skywalking:12800/graphql
+        - --cert-dir=/tmp
+        command:
+        - /adapter
+        image: apache/skywalking-swck:v0.6.1
+        imagePullPolicy: IfNotPresent
+        name: adapter
+        ports:
+        - containerPort: 6443
+          name: https
+        volumeMounts:
+        - mountPath: /tmp
+          name: temp-vol
+      serviceAccountName: skywalking-custom-metrics-apiserver
+      volumes:
+      - emptyDir: {}
+        name: temp-vol
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.external.metrics.k8s.io
+spec:
+  group: external.metrics.k8s.io
+  groupPriorityMinimum: 100
+  insecureSkipTLSVerify: true
+  service:
+    name: skywalking-custom-metrics-apiserver
+    namespace: skywalking-custom-metrics-system
+  version: v1beta1
+  versionPriority: 100
