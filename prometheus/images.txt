@@ -1,0 +1,14 @@
+quay.io/prometheus/node-exporter:v1.3.1
+quay.io/prometheus/prometheus:v2.32.1
+quay.io/prometheus/alertmanager:v0.23.0
+quay.io/prometheus/blackbox-exporter:v0.19.0
+quay.io/brancz/kube-rbac-proxy:v0.11.0
+quay.io/prometheus-operator/prometheus-operator:v0.53.1
+
+
+k8s.gcr.io/kube-state-metrics/kube-state-metrics:v2.3.0
+k8s.gcr.io/prometheus-adapter/prometheus-adapter:v0.9.1
+
+jimmidyson/configmap-reload:v0.5.0
+
+grafana/grafana:8.3.10

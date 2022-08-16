@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana.example.com
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - grafana.example.com
+      secretName: [证书名称]
+  rules:
+    - host: grafana.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  name: http
