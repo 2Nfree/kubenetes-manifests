@@ -1,0 +1,47 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cm-zook
+  namespace: zookeeper
+  labels:
+    app: zookeeper
+data:
+  zoo.cfg: |
+    # 通信心跳时间，zookeeper服务器与客户端心跳时间，单位毫秒。
+    tickTime=2000
+    
+    # LF初始通信时限，Leader和Follower初始连接时能容忍的最多心跳数（tickTime的数量）。
+    initLimit=100
+    
+    # LF同步通信时限，Leader和Follower之间通信时间如果超过syncLimit*tickTime，Leader认为Follower死掉，从服务器列表中删除Follower。
+    syncLimit=5
+    
+    # 保存zookeeper中的数据，默认的tmp目录，容易被Linux系统定期删除，所以一般不用默认目录。
+    dataDir=/data
+    
+    # 客户端连接端口，通常不做修改。
+    clientPort=2181
+    
+    # 对于一个客户端的连接数限制 
+    maxClientCnxns=4096
+
+    # 客户端在与zookeeper交互过程中会产生非常多的日志，而且zookeeper也会将内存中的数据作为snapshot保存下来，这些数据是不会被自动删除的，这样磁盘中这样的数据就会越来越多。
+    # 不过可以通过这两个参数来设置，让zookeeper自动删除数据。
+    # autopurge.purgeInterval就是设置多少小时清理一次。
+    # autopurge.snapRetainCount是设置保留多少个snapshot，之前的则删除。
+    autopurge.snapRetainCount=128
+    autopurge.purgeInterval=1
+    
+    # 集群节点信息
+    server.1=zookeeper0.zookeeper.zookeeper.svc.cluster.local:2888:3888
+    server.2=zookeeper1.zookeeper.zookeeper.svc.cluster.local:2888:3888
+    server.3=zookeeper2.zookeeper.zookeeper.svc.cluster.local:2888:3888
+    server.4=zookeeper3.zookeeper.zookeeper.svc.cluster.local:2888:3888
+    server.5=zookeeper4.zookeeper.zookeeper.svc.cluster.local:2888:3888
+  setup.sh: |
+    #!/bin/bash
+    # 将pod中zookeeper的myid修改成相应的数值
+    ORD=`hostname -s | awk -F "-" '{print $2}'`
+    echo $((ORD+1)) >/data/myid
+    # 脚本最后一条命令要在后台运行，否则pod的状态会处于Complete。
+    /apache-zookeeper-3.7.1-bin/bin/zkServer.sh start-foreground

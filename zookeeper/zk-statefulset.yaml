@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  namespace: zookeeper
+  labels:
+    app: zookeeper
+spec:
+  serviceName: zookeeper
+  replicas: 5
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+     labels:
+       app: zookeeper
+    spec:
+      spec:
+      containers:
+      - name: zookeeper
+        image: zookeeper:3.7.1
+        #执行脚本
+        command: ["sh", "/setup.sh"]
+        volumeMounts:
+          - name: zk-config
+            mountPath: /conf/zoo.cfg
+          - name: zk-setup
+            mountPath: /setup.sh
+      volumes:
+        - name: zk-config
+          configMap:
+            name: cm-zook
+            defaultMode: 0755
+            items: 
+            - key: zoo.cfg
+              path: /conf/zoo.cfg
+        - name: zk-setup
+          configMap:
+            name: cm-zook
+            defaultMode: 0755
+            items:
+            - key: setup.sh
+              path: /setup.sh
