@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: redis
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 6
+  serviceName: redis
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+        - name: redis-config
+          configMap:
+            name: redis-config
+            defaultMode: 0755
+      containers:
+        - name: redis
+          image: redis:6.2.5
+          command: ["/etc/redis/fix-ip.sh", "redis-server", "/etc/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+              name: client
+            - containerPort: 16379
+              name: gossip
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: localtime
+              mountPath: /etc/localtime
+              readOnly: true
+            - name: redis-storage
+              mountPath: /data
+              readOnly: false
+            - name: redis-config
+              mountPath: /etc/redis/
+              readOnly: false
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+  volumeClaimTemplates:
+    - kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: redis-storage
+        namespace: redis
+      spec:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 5Gi
+        storageClassName: gluster
